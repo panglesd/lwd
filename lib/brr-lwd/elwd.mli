@@ -16,7 +16,7 @@ type 'a col = [
 type handler (* An event handler *)
 val handler : ?opts:Ev.listen_opts -> 'a Ev.type' -> ('a Ev.t -> unit) -> handler
 
-val v : ?d:document -> ?at:At.t col -> ?ev:handler col -> tag_name -> t col -> t Lwd.t
+val v : ?ns:[`HTML | `MathML | `SVG] -> ?d:document -> ?at:At.t col -> ?ev:handler col -> tag_name -> t col -> t Lwd.t
 (** [v ?d ?at name cs] is an element [name] with attribute [at]
     (defaults to [[]]) and children [cs]. If [at] specifies an
     attribute more thanonce, the last one takes over with the

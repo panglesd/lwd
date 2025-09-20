@@ -260,11 +260,11 @@ let attach_events el events =
     ) (pure_unit, fun _ _ -> pure_unit)
     events
 
-let v ?d ?(at=[]) ?(ev=[]) tag children =
+let v ?ns ?d ?(at=[]) ?(ev=[]) tag children =
   let at, impure_at = prepare_col at in
   let ev, impure_ev = prepare_col ev in
   let children, impure_children = consume_children children in
-  let el = El.v ?d ~at tag children in
+  let el = El.v ?ns ?d ~at tag children in
   let result =
     match impure_at, impure_children with
     | [], None -> Lwd.pure el
