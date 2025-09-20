@@ -222,7 +222,7 @@ let attach_attribs el attribs =
           ignore (Lwd_seq.Reducer.reduce reducer': _ option)
         in
         Lwd.map ~f:update ats
-    ) (pure_unit, fun _ _ -> pure_unit)
+    ) (pure_unit, Lwd.map2 ~f:(fun () () -> ()))
     attribs
 
 let listen el (Handler {opts; type'; func}) =
@@ -257,7 +257,7 @@ let attach_events el events =
           ignore (Lwd_seq.Reducer.reduce reducer': _ option)
         in
         Lwd.map ~f:update ats
-    ) (pure_unit, fun _ _ -> pure_unit)
+    ) (pure_unit, Lwd.map2 ~f:(fun () () -> ()))
     events
 
 let v ?d ?(at=[]) ?(ev=[]) tag children =
