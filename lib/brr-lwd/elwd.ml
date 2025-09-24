@@ -177,32 +177,22 @@ let pure_unit = Lwd.pure ()
 
 let dummy_kv_at = (Jstr.empty, Jstr.empty)
 
-let attach_attribs el attribs =
-  let set_kv (k, v) =
-    if Jstr.equal k At.Name.class'
-    then El.set_class v true el
-    else El.set_at k (Some v) el
-  in
-  let unset_kv (k, v) =
-    if Jstr.equal k At.Name.class'
-    then El.set_class v false el
-    else El.set_at k None el
-  in
-  let set_lwd_at () =
+let attach l set_kv unset_kv to_kv =
+  let set_lwd () =
     let prev = ref dummy_kv_at in
-    fun at ->
+    fun x ->
       if !prev != dummy_kv_at then
         unset_kv !prev;
-      let pair = At.to_pair at in
-      set_kv pair;
-      prev := pair
+      let kv = to_kv x in
+      set_kv kv;
+      prev := kv
   in
   Lwd_utils.map_reduce (function
       | `P _ -> assert false
-      | `R at -> Lwd.map ~f:(set_lwd_at ()) at
+      | `R at -> Lwd.map ~f:(set_lwd ()) at
       | `S ats ->
-        let set_at' at =
-          let kv = At.to_pair at in
+        let set_at' x =
+          let kv = to_kv x in
           set_kv kv;
           kv
         in
@@ -223,49 +213,29 @@ let attach_attribs el attribs =
         in
         Lwd.map ~f:update ats
     ) (pure_unit, Lwd.map2 ~f:(fun () () -> ()))
-    attribs
+    l
+
+let attach_attribs el attribs =
+  let set_at (k,v) =
+    if Jstr.equal k At.Name.class'
+    then El.set_class v true el
+    else El.set_at k (Some v) el
+  in
+  let unset_at (k,v) =
+    if Jstr.equal k At.Name.class'
+    then El.set_class v false el
+    else El.set_at k None el
+  in
+  attach attribs set_at unset_at At.to_pair
 
 let attach_style el styles =
-  let set_kv (k, v) =
+  let set_st (k,v) =
     El.set_inline_style k v el
   in
-  let unset_kv (k, _) =
+  let unset_st (k,_) =
     El.remove_inline_style k el
   in
-  let set_lwd_style () =
-    let prev = ref dummy_kv_at in
-    fun style ->
-      if !prev != dummy_kv_at then
-        unset_kv !prev;
-      set_kv style;
-      prev := style
-  in
-  Lwd_utils.map_reduce (function
-      | `P _ -> assert false
-      | `R at -> Lwd.map ~f:(set_lwd_style ()) at
-      | `S ats ->
-        let set_at' st =
-          set_kv st;
-          st
-        in
-        let reducer =
-          ref (Lwd_seq.Reducer.make
-                 ~map:set_at'
-                 ~reduce:(fun _ _ -> dummy_kv_at))
-        in
-        let update ats =
-          let dropped, reducer' =
-            Lwd_seq.Reducer.update_and_get_dropped !reducer ats
-          in
-          reducer := reducer';
-          Lwd_seq.Reducer.fold_dropped `Map
-            (fun kv () -> unset_kv kv)
-            dropped ();
-          ignore (Lwd_seq.Reducer.reduce reducer': _ option)
-        in
-        Lwd.map ~f:update ats
-    ) (pure_unit, Lwd.map2 ~f:(fun () () -> ()))
-    styles
+  attach styles set_st unset_st Fun.id
 
 let listen el (Handler {opts; type'; func}) =
   Ev.listen ?opts type' func (El.as_target el)
