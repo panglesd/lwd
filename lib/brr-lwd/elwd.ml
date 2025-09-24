@@ -225,6 +225,48 @@ let attach_attribs el attribs =
     ) (pure_unit, Lwd.map2 ~f:(fun () () -> ()))
     attribs
 
+let attach_style el styles =
+  let set_kv (k, v) =
+    El.set_inline_style k v el
+  in
+  let unset_kv (k, _) =
+    El.remove_inline_style k el
+  in
+  let set_lwd_style () =
+    let prev = ref dummy_kv_at in
+    fun style ->
+      if !prev != dummy_kv_at then
+        unset_kv !prev;
+      set_kv style;
+      prev := style
+  in
+  Lwd_utils.map_reduce (function
+      | `P _ -> assert false
+      | `R at -> Lwd.map ~f:(set_lwd_style ()) at
+      | `S ats ->
+        let set_at' st =
+          set_kv st;
+          st
+        in
+        let reducer =
+          ref (Lwd_seq.Reducer.make
+                 ~map:set_at'
+                 ~reduce:(fun _ _ -> dummy_kv_at))
+        in
+        let update ats =
+          let dropped, reducer' =
+            Lwd_seq.Reducer.update_and_get_dropped !reducer ats
+          in
+          reducer := reducer';
+          Lwd_seq.Reducer.fold_dropped `Map
+            (fun kv () -> unset_kv kv)
+            dropped ();
+          ignore (Lwd_seq.Reducer.reduce reducer': _ option)
+        in
+        Lwd.map ~f:update ats
+    ) (pure_unit, Lwd.map2 ~f:(fun () () -> ()))
+    styles
+
 let listen el (Handler {opts; type'; func}) =
   Ev.listen ?opts type' func (El.as_target el)
 
@@ -260,9 +302,10 @@ let attach_events el events =
     ) (pure_unit, Lwd.map2 ~f:(fun () () -> ()))
     events
 
-let v ?d ?(at=[]) ?(ev=[]) tag children =
+let v ?d ?(at=[]) ?(ev=[]) ?(st=[]) tag children =
   let at, impure_at = prepare_col at in
   let ev, impure_ev = prepare_col ev in
+  let st, impure_st = prepare_col st in
   let children, impure_children = consume_children children in
   let el = El.v ?d ~at tag children in
   let result =
@@ -271,12 +314,19 @@ let v ?d ?(at=[]) ?(ev=[]) tag children =
     | Some children -> update_children el children
   in
   let result =
+    match impure_st with
+    | [] -> result
+    | st ->
+      Lwd.map2 ~f:(fun () el -> el) (attach_style el st) result
+  in
+  let result =
     match impure_at with
     | [] -> result
     | at ->
       Lwd.map2 ~f:(fun () el -> el) (attach_attribs el at) result
   in
   List.iter (fun h -> ignore (listen el h)) ev;
+  List.iter (fun (k,v) -> El.set_inline_style k v el) st;
   let result =
     match impure_ev with
     | [] -> result
@@ -289,16 +339,20 @@ let v ?d ?(at=[]) ?(ev=[]) tag children =
 
 (** {1:els Element constructors} *)
 
-type cons =  ?d:document -> ?at:At.t col -> ?ev:handler col -> t col -> t Lwd.t
+type cons =
+  ?d:document -> ?at:At.t col -> ?ev:handler col -> ?st:(El.Style.prop * Jstr.t) col ->
+  t col -> t Lwd.t
 (** The type for element constructors. This is simply {!v} with a
     pre-applied element name. *)
 
-type void_cons = ?d:document -> ?at:At.t col -> ?ev:handler col -> unit -> t Lwd.t
+type void_cons =
+  ?d:document -> ?at:At.t col -> ?ev:handler col -> ?st:(El.Style.prop * Jstr.t) col ->
+  unit -> t Lwd.t
 (** The type for void element constructors. This is simply {!v}
     with a pre-applied element name and without children. *)
 
-let cons name ?d ?at ?ev cs = v ?d ?at ?ev name cs
-let void_cons name ?d ?at ?ev () = v ?d ?at ?ev name []
+let cons name ?d ?at ?ev ?st cs = v ?d ?at ?ev ?st name cs
+let void_cons name ?d ?at ?ev ?st () = v ?d ?at ?ev ?st name []
 
 let a = cons Name.a
 let abbr = cons Name.abbr
