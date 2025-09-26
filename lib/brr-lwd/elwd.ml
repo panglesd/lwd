@@ -242,6 +242,8 @@ let attach_prop el props =
     Jv.set' (El.to_jv el) k v
   in
   let unset_prop (k,_) =
+    (* This seems to generate warnings but the javascript counterpart does
+       not... *)
     Jv.set' (El.to_jv el) k Jv.undefined
   in
   attach props set_prop unset_prop Fun.id (Jstr.v "", Jv.undefined)
