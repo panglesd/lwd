@@ -244,7 +244,15 @@ let attach_prop el props =
   let unset_prop (k,_) =
     (* This seems to generate warnings but the javascript counterpart does
        not... *)
-    Jv.set' (El.to_jv el) k Jv.undefined
+    (* Jv.set' (El.to_jv el) k Jv.undefined *)
+    (* Also, it seems there is a bug with the commented line above: changed
+       properties are first unset and then set. This works badly with some
+       properties (like max): setting max to undefined then defined changes the
+       value.
+
+    It's probably better to let the user decide when unsetting the property with
+    [Jv.undefined] *)
+    ()
   in
   attach props set_prop unset_prop Fun.id (Jstr.v "", Jv.undefined)
 
