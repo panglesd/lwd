@@ -100,3 +100,6 @@ val map_reduce : ('a row -> 'a -> 'b) -> 'b Lwd_utils.monoid -> 'a t -> 'b Lwd.t
 
 val iter : ('a -> unit) -> 'a t -> unit
 (** Immediate, non reactive, iteration over elements of a table *)
+
+val fold : ('acc -> 'a -> 'acc) -> 'acc ->  'a t -> 'acc
+(** Immediate, non reactive, iteration over elements of a table *)

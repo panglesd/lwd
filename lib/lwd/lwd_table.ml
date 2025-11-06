@@ -518,6 +518,11 @@ let rec iter f = function
   | Root t ->
     iter f t.child
 
+let fold f acc t =
+  let acc = ref acc in
+  iter (fun e -> acc := f !acc e) t;
+  !acc
+
 let rec left_most : 'a row -> 'a row option = function
   | Root _ -> assert false
   | Leaf -> None
