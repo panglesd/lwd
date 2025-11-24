@@ -102,4 +102,4 @@ val iter : ('a -> unit) -> 'a t -> unit
 (** Immediate, non reactive, iteration over elements of a table *)
 
 val fold : ('acc -> 'a -> 'acc) -> 'acc ->  'a t -> 'acc
-(** Immediate, non reactive, iteration over elements of a table *)
+(** Immediate, non reactive, fold over elements of a table *)
