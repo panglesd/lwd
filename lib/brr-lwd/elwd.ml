@@ -297,41 +297,28 @@ let v ?ns ?d ?(at=[]) ?(ev=[]) ?(st=[]) ?(prop=[]) tag children =
   let st, impure_st = prepare_col st in
   let pr, impure_pr = prepare_col prop in
   let children, impure_children = consume_children children in
+  (* The pure part *)
   let el = El.v ?ns ?d ~at tag children in
+  List.iter (fun h -> ignore (listen el h)) ev;
+  List.iter (fun (k,v) -> El.set_inline_style k v el) st;
+  List.iter (fun (k,v) -> Jv.set' (El.to_jv el) k v) pr;
+  (* The reactive part. The result is always [el] but we attach the reactive
+     attrs/prop/etc, which mutate [el] as a side-effect when invalidated. *)
+  let handle_impure base attach impures =
+    match impures with
+    | [] -> base
+    | impures ->
+      Lwd.map2 ~f:(fun () el -> el) (attach el impures) base
+  in
   let result =
     match impure_children with
     | None -> Lwd.pure el
     | Some children -> update_children el children
   in
-  let result =
-    match impure_st with
-    | [] -> result
-    | st ->
-      Lwd.map2 ~f:(fun () el -> el) (attach_style el st) result
-  in
-  let result =
-    match impure_at with
-    | [] -> result
-    | at ->
-      Lwd.map2 ~f:(fun () el -> el) (attach_attribs el at) result
-  in
-  let result =
-    match impure_pr with
-    | [] -> result
-    | pr ->
-      Lwd.map2 ~f:(fun () el -> el) (attach_prop el pr) result
-  in
-  List.iter (fun h -> ignore (listen el h)) ev;
-  List.iter (fun (k,v) -> El.set_inline_style k v el) st;
-  List.iter (fun (k,v) -> Jv.set' (El.to_jv el) k v) pr;
-  let result =
-    match impure_ev with
-    | [] -> result
-    | evs ->
-      Lwd.map2 ~f:(fun () el -> el)
-        (attach_events el evs)
-        result
-  in
+  let result = handle_impure result attach_style impure_st in
+  let result = handle_impure result attach_attribs impure_at in
+  let result = handle_impure result attach_prop impure_pr in
+  let result = handle_impure result attach_events impure_ev in
   result
 
 (** {1:els Element constructors} *)
